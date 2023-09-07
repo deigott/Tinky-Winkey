@@ -12,13 +12,13 @@ SVC_OBJ = $(SVC_SRCS:.cpp=.obj)
 
 
 .cpp.obj:
-	@$(CC) $(CFLAGS) /nologo /c $< /Fo: $@ 
+	@$(CC) $(CFLAGS) /c $< /Fo: $@ 
 
 all: $(SVC_NAME)
 
 $(SVC_NAME): $(SVC_OBJ)
 	@echo "Building {tinky} service."
-	@$(LINK) /nologo $(SVC_OBJ) Advapi32.lib  /OUT:$(SVC_NAME) 
+	@$(LINK) $(SVC_OBJ) Advapi32.lib  /OUT:$(SVC_NAME) 
 
 clean:
 	@del $(OBJ_KEYLOGGER) $(SVC_OBJ)
