@@ -9,12 +9,12 @@
 
 class Tinky {
 public:
-	Tinky( LPCWSTR serviceName );
-	//Tinky( const Tinky &copy );
+	Tinky( const std::string &serviceName );
+	Tinky( const Tinky &copy );
 	~Tinky( void );
 
 	// Specify Getters section
-	LPCWSTR		getServiceName(void) const;
+	std::string		getServiceName(void) const;
 
 	// TO-DO: Here we handle creation/starting/stoping of our tinky service
 	bool			createService(void);
@@ -24,7 +24,7 @@ public:
 private:
 	Tinky(void);
 
-	LPCWSTR		_tinkyServiceName;
+	std::string	_tinkyServiceName;
 	SC_HANDLE	_hServiceControlManager;
 	SC_HANDLE	_hServiceTinky;
 };
