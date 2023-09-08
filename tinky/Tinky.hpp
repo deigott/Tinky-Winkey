@@ -24,6 +24,10 @@ public:
 private:
 	Tinky(void);
 
+	BOOL	__openService(void);
+	BOOL	__closeServiceHandle(void);
+
+
 	std::string	_tinkyServiceName;
 	SC_HANDLE	_hServiceControlManager;
 	SC_HANDLE	_hServiceTinky;
