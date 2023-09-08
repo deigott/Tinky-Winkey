@@ -52,8 +52,11 @@ bool Tinky::createService(void)
 	* Check if a service is already installed/created if not install/create it
 	*/
 
-	if (!__openService())
+	if (__openService())
+	{
+		std::cout << "(-) service {tinky} is already installed." << std::endl;
 		return (false);
+	}
 
 	/**
 	* Retrieves the fully qualified path for the file that contains the specified module.
@@ -121,7 +124,7 @@ bool Tinky::startService(void)
 	/** Starts a service object. **/
 	__startServiceStatus =  StartService(
 		_hServiceTinky,
-		1,
+		0,
 		NULL
 	);
 
@@ -165,21 +168,12 @@ bool Tinky::stopService(void)
 		&__dwBytesNeeded
 	);
 
-	if (!__serviceQueryStatus)
+	if (!__serviceQueryStatus || __serviceStatusProcess.dwCurrentState == SERVICE_STOPPED)
 	{
 		/** Closes the service object handle **/
 		__closeServiceHandle();
 
 		std::cout << "(-) service {" << _tinkyServiceName << "} is already stopped." << std::endl;
-		return (false);
-	}
-
-	if (__serviceStatusProcess.dwCurrentState == SERVICE_STOPPED)
-	{
-		/** Closes the service object handle **/
-		__closeServiceHandle();
-
-		std::cout << "(-) failed stopping service {" << _tinkyServiceName << "} handle." << std::endl;
 		return (false);
 	}
 
@@ -195,7 +189,7 @@ bool Tinky::stopService(void)
 		/** Closes the service object handle **/
 		__closeServiceHandle();
 
-		std::cout << "(-) failed stopping service {" << _tinkyServiceName << "} handle." << std::endl;
+		std::cout << "(-) failed stopping service {" << _tinkyServiceName << "} object. Error: " << GetLastError() << std::endl;
 		return (false);
 	}
 
@@ -209,7 +203,68 @@ bool Tinky::stopService(void)
 
 bool Tinky::deleteService(void)
 {
-	return false;
+	SERVICE_STATUS_PROCESS	__serviceStatusProcess;
+	DWORD					__dwBytesNeeded;
+	BOOL					__openServiceHandlerStatus;
+	BOOL					__deleteServiceStatus;
+	BOOL					__serviceQueryStatus;
+	BOOL					__closeHandleStatus;
+
+	/* Get a handle to the service. */
+	__openServiceHandlerStatus = __openService();
+	if (!__openServiceHandlerStatus)
+		return (false);
+
+	// Make sure the service is stopped.
+	__serviceQueryStatus = QueryServiceStatusEx(
+		_hServiceTinky,
+		SC_STATUS_PROCESS_INFO,
+		(LPBYTE)&__serviceStatusProcess,
+		sizeof(SERVICE_STATUS_PROCESS),
+		&__dwBytesNeeded
+	);
+
+	if (!__serviceQueryStatus)
+	{
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cout << "(-) failed deleting service {" << _tinkyServiceName << "} object." << std::endl;
+		return (false);
+	}
+
+	if (__serviceStatusProcess.dwCurrentState != SERVICE_STOPPED)
+	{
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cout << "(-) failed service {" << _tinkyServiceName << "} is not stopped." << std::endl;
+		return (false);
+	}
+
+	/**
+	* TO-DO:	Delete the service.
+	* Remark:	The DeleteService function marks a service for deletion from the service control manager database.
+	*			The database entry is not removed until all open handles to the service have been closed.
+	*/
+	__deleteServiceStatus = DeleteService(
+		_hServiceTinky
+	);
+
+	if (!__deleteServiceStatus)
+	{
+		__closeServiceHandle();
+
+		std::cout << "(-) failed deleting service {" << _tinkyServiceName << "} object. Error: " << GetLastError() << std::endl;
+		return (false);
+	}
+
+	/** Closes the service object handle **/
+	__closeHandleStatus = __closeServiceHandle();
+	if (!__closeHandleStatus)
+		return (false);
+
+	return true;
 }
 
 BOOL Tinky::__openService(void)
