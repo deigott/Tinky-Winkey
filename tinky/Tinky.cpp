@@ -28,7 +28,12 @@ Tinky::Tinky( const Tinky& copy )
 
 Tinky::~Tinky( void )
 {
-	CloseServiceHandle(_hServiceControlManager);
+	BOOL	__closeHandleStatus;
+
+	__closeHandleStatus = CloseServiceHandle(_hServiceControlManager);
+
+	if (!__closeHandleStatus)
+		return;
 	return ;
 }
 
@@ -40,45 +45,31 @@ std::string Tinky::getServiceName(void) const
 bool Tinky::createService(void)
 {
 	BOOL	__closeHandleStatus;
-	char Path[260];
+	char	__ServiceFullPath[260];
 
-	if (!GetCurrentDirectory(260, Path))
-	{
-		printf("Cannot install service (%ld)\n", GetLastError());
-		return false;
-	}
-	strcat_s(Path, "\\svc.exe");
 
 	/**
 	* Check if a service is already installed/created if not install/create it
 	*/
-	_hServiceTinky = OpenService(
-		_hServiceControlManager,
-		_tinkyServiceName.c_str(),
-		GENERIC_ALL
-	);
 
-	if (_hServiceTinky != NULL)
-	{
-		/** Closes the service object handle **/
-		CloseServiceHandle(_hServiceTinky);
-
-		std::cout << "(-) service {tinky} is already installed." << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	if (!__openService())
+		return (false);
 
 	/**
 	* Retrieves the fully qualified path for the file that contains the specified module.
 	* The module must have been loaded by the current process.
 	*/
-	//__nSize = GetModuleFileNameW(
-	//	NULL,
-	//	*__ipFileName,
-	//	1024
-	//);
-	//if (__nSize < 1024)
-	//	__ipFileName[__nSize] = '\0';
-	
+
+	if (!GetCurrentDirectory(260, __ServiceFullPath))
+	{
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cout << "(-) failed to install service {" << _tinkyServiceName << "} handle." << std::endl;
+		return false;
+	}
+
+	strcat_s(__ServiceFullPath, "\\svc.exe");
 
 	/* Creates a service object and adds it to the specified service control manager database. */
 	_hServiceTinky = CreateService(
@@ -89,39 +80,140 @@ bool Tinky::createService(void)
 		SERVICE_WIN32_OWN_PROCESS,
 		SERVICE_DEMAND_START,
 		SERVICE_ERROR_NORMAL,
-		Path,
+		__ServiceFullPath,
 		NULL,
 		NULL,
 		NULL,
 		NULL,
 		NULL
 	);
-	if (_hServiceTinky == NULL)
-		return (false);
-	/** Closes the service object handle **/
 
-	__closeHandleStatus = CloseServiceHandle(
-		_hServiceTinky
-	);
-	if (__closeHandleStatus == 0)
+	if (_hServiceTinky == NULL)
 	{
-		std::cout << "(-) failed to close service {tinky} handle." << std::endl;
-		exit(EXIT_FAILURE);
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cerr << "(-) failed to install service {" << _tinkyServiceName << "} handle." << std::endl;
+		return (false);
 	}
+
+	/** Closes the service object handle **/
+	__closeHandleStatus = __closeServiceHandle();
+	if (!__closeHandleStatus)
+		return (false);
+
 	return true;
 }
 
 bool Tinky::startService(void)
 {
-	//LPWSTR* __ipFileName = new LPWSTR[1024];
 	BOOL	__closeHandleStatus;
 	BOOL	__startServiceStatus;
-	//DWORD	__nSize;
 
 
 	/**
 	* Check if a service is already installed/created if not install/create it
 	*/
+	
+	if (!__openService())
+		return (false);
+
+	/** Starts a service object. **/
+	__startServiceStatus =  StartService(
+		_hServiceTinky,
+		1,
+		NULL
+	);
+
+	if (__startServiceStatus == 0)
+	{
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cout << "(-) failed to start service {tinky} object. ERROR: " << GetLastError() << " "  << std::endl;
+		return (false);
+	}
+
+	/** Closes the service object handle **/
+	__closeHandleStatus = __closeServiceHandle();
+	if (!__closeHandleStatus)
+		return (false);
+
+	return true;
+}
+
+bool Tinky::stopService(void)
+{
+	SERVICE_STATUS_PROCESS	__serviceStatusProcess;
+	DWORD					__dwBytesNeeded;
+	BOOL					__serviceQueryStatus;
+	BOOL					__controlServiceStatus;
+	BOOL					__closeHandleStatus;
+
+	// Get a handle to the service.
+
+	if (!__openService())
+		return (false);
+
+	// Make sure the service is not already stopped.
+
+	__serviceQueryStatus = QueryServiceStatusEx(
+		_hServiceTinky,
+		SC_STATUS_PROCESS_INFO,
+		(LPBYTE)&__serviceStatusProcess,
+		sizeof(SERVICE_STATUS_PROCESS),
+		&__dwBytesNeeded
+	);
+
+	if (!__serviceQueryStatus)
+	{
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cout << "(-) service {" << _tinkyServiceName << "} is already stopped." << std::endl;
+		return (false);
+	}
+
+	if (__serviceStatusProcess.dwCurrentState == SERVICE_STOPPED)
+	{
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cout << "(-) failed stopping service {" << _tinkyServiceName << "} handle." << std::endl;
+		return (false);
+	}
+
+	// Send a stop code to the service.
+	__controlServiceStatus = ControlService(
+		_hServiceTinky,
+		SERVICE_CONTROL_STOP,
+		(LPSERVICE_STATUS)&__serviceStatusProcess
+	);
+
+	if (!__controlServiceStatus)
+	{
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cout << "(-) failed stopping service {" << _tinkyServiceName << "} handle." << std::endl;
+		return (false);
+	}
+
+	/** Closes the service object handle **/
+	__closeHandleStatus = __closeServiceHandle();
+	if (!__closeHandleStatus)
+		return (false);
+
+	return true;
+}
+
+bool Tinky::deleteService(void)
+{
+	return false;
+}
+
+BOOL Tinky::__openService(void)
+{
 	_hServiceTinky = OpenService(
 		_hServiceControlManager,
 		_tinkyServiceName.c_str(),
@@ -131,43 +223,15 @@ bool Tinky::startService(void)
 	if (_hServiceTinky == NULL)
 	{
 		std::cout << "(-) service {tinky} is not installed." << std::endl;
-		exit(EXIT_FAILURE);
+		return (false);
 	}
 
-	/*__nSize = GetFullPathNameW(
-		L".\\hello.exe",
-		1024,
-		*__ipFileName,
-		NULL
-	);
-	std::cout << __ipFileName << std::endl;*/
-	// Path to the executable you want to run as the service
-	std::string exePath = "C:\\Users\\Devicekiller402\\Projects\\tinky-winkey\\tinky\\hello.exe"; // Update this with the correct path
+	return (true);
+}
 
-	
-	char Path[260];
-
-	if (!GetCurrentDirectory(260, Path))
-	{
-		printf("Cannot install service (%ld)\n", GetLastError());
-		return false;
-	}
-	strcat_s(Path, "\\svc.exe");
-
-	// Prepare an array of null-terminated strings
-	LPCSTR serviceArgs[] = { Path, nullptr };
-	/** Starts a service object. **/
-	__startServiceStatus =  StartService(
-		_hServiceTinky,
-		1,
-		serviceArgs
-	);
-
-	if (__startServiceStatus == 0)
-	{
-		std::cout << "(-) failed to start service {tinky} object. ERROR: " << GetLastError() << " "  << std::endl;
-		exit(EXIT_FAILURE);
-	}
+BOOL Tinky::__closeServiceHandle(void)
+{
+	BOOL	__closeHandleStatus;
 
 	/** Closes the service object handle **/
 	__closeHandleStatus = CloseServiceHandle(
@@ -175,20 +239,9 @@ bool Tinky::startService(void)
 	);
 	if (__closeHandleStatus == 0)
 	{
-		std::cout << "(-) failed to close service {tinky} handle." << std::endl;
-		exit(EXIT_FAILURE);
+		std::cout << "(-) failed to close service {" << _tinkyServiceName << "} handle." << std::endl;
+		return (false);
 	}
-	//delete __ipFileName;
 
-	return true;
-}
-
-bool Tinky::stopService(void)
-{
-	return false;
-}
-
-bool Tinky::deleteService(void)
-{
-	return false;
+	return (true);
 }
