@@ -18,7 +18,7 @@ all: $(SVC_NAME)
 
 $(SVC_NAME): $(SVC_OBJ)
 	@echo "Building {tinky} service."
-	@$(LINK) $(SVC_OBJ) Advapi32.lib  /OUT:$(SVC_NAME) 
+	@$(LINK) $(SVC_OBJ)  /OUT:$(SVC_NAME) 
 
 clean:
 	@del $(OBJ_KEYLOGGER) $(SVC_OBJ)
