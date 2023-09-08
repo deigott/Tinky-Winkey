@@ -4,57 +4,116 @@ VOID WINAPI ServiceMain(DWORD dwArgc, LPTSTR* lpszArgv)
 {
 	(void)dwArgc;
 	(void)lpszArgv;
+	STARTUPINFOW si = { 0 };
+	PROCESS_INFORMATION pi = { 0 };
 
-	while (1);
+	CreateProcessW(
+		L"C:\\Windows\\System32\\notepad.exe",
+		NULL,
+		NULL,
+		NULL,
+		FALSE,
+		BELOW_NORMAL_PRIORITY_CLASS,
+		NULL,
+		NULL,
+		&si,
+		&pi
+	);
 }
 
-int     main( int argc, char **argv )
+// Logs messages to the event log
+//VOID SvcReportEvent(LPTSTR szFunction)
+//{
+//	HANDLE hEventSource;
+//	LPCTSTR lpszStrings[2];
+//	TCHAR Buffer[80];
+//
+//	hEventSource = RegisterEventSource(NULL, SVCNAME);
+//
+//	if (NULL != hEventSource)
+//	{
+//		StringCchPrintf(Buffer, 80, TEXT("%s failed with %d"), szFunction, GetLastError());
+//
+//		lpszStrings[0] = SVCNAME;
+//		lpszStrings[1] = Buffer;
+//
+//		ReportEvent(hEventSource,        // event log handle
+//			EVENTLOG_ERROR_TYPE, // event type
+//			0,                   // event category
+//			SVC_ERROR,           // event identifier
+//			NULL,                // no security identifier
+//			2,                   // size of lpszStrings array
+//			0,                   // no binary data
+//			lpszStrings,         // array of strings
+//			NULL);               // no binary data
+//
+//		DeregisterEventSource(hEventSource);
+//	}
+//}
+
+BOOL	_processEntryPoint(void)
 {
+	/** Entry point for the service process **/
+	BOOL	__serviceDispatcherStatus;
+
+
+	// TO_DO: Add any additional services for the process to this table.
+	SERVICE_TABLE_ENTRY __serviceDispatcherEntryTable[] =
+	{
+		{
+			SVCNAME, 
+			(LPSERVICE_MAIN_FUNCTION)ServiceMain
+		},
+		{
+			NULL,
+			NULL 
+		}
+	};
+
+	// This call returns when the service has stopped. 
+	// The process should simply terminate when the call returns.
+	__serviceDispatcherStatus = StartServiceCtrlDispatcher(__serviceDispatcherEntryTable);
+	if (!__serviceDispatcherEntryTable)
+	{
+		//SvcReportEvent(TEXT("StartServiceCtrlDispatcher"));
+		return (false);
+	}
+
+	return (true);
+}
+
+int     main(int argc, char** argv)
+{
+	BOOL	__entryPointStatus;
+
+	/** Entry point for the service process **/
 	if (argc < 2)
 	{
-		SERVICE_TABLE_ENTRY ServiceStartTable[2];
-		ServiceStartTable[0].lpServiceName = "tinkey1";
-		ServiceStartTable[0].lpServiceProc = (LPSERVICE_MAIN_FUNCTION)ServiceMain;
-		ServiceStartTable[1].lpServiceName = NULL;
-		ServiceStartTable[1].lpServiceProc = NULL;
-		if (StartServiceCtrlDispatcher(ServiceStartTable))
-			return 0;
-		else if (GetLastError() == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT)
-			return -1; // Program not started as a service.
-		else
-			return -2; // Other error.
+		__entryPointStatus = _processEntryPoint();
+		if (!__entryPointStatus)
+			return (false);
 	}
-	try {
-		Tinky	__tinkyService("tinkey1");
-
-		if (strcmp(argv[1], "install") == 0)
-		{
-			if (__tinkyService.createService())
-				std::cout << "Service {tinky} installed successfully." << std::endl;
-			else
-				std::cout << "(-) failed to creates a service {tinky} object." << std::endl;
-		}
-		else if (strcmp(argv[1], "start") == 0)
-		{
-			if (__tinkyService.startService())
-				std::cout << "Service {tinky} started successfully.";
-			else
-				std::cout << "(-) failed to start service {tinky} object." << std::endl;
-		}
-		else if (strcmp(argv[1], "stop") == 0)
-		{
-			__tinkyService.stopService();
-			std::cout << "Service {tinky} stopped successfully.";
-		}
-		else if (strcmp(argv[1], "delete") == 0)
-		{
-			__tinkyService.deleteService();
-			std::cout << "Service {tinky} deleted successfully.";
-		}
-	}
-	catch (const std::exception& e)
+	else
 	{
-		std::cerr << "Exception caught: " << e.what() << std::endl;
+		Tinky	__tinkyService(SVCNAME);
+
+		const char* commands[] = { "install", "start", "stop", "delete" };
+
+		// Define an array of function pointers
+		bool (Tinky:: * serviceFunctions[])() = {
+			&(Tinky::createService),
+			&(Tinky::startService),
+			&(Tinky::stopService),
+			&(Tinky::deleteService)
+		};
+
+		for (int i = 0; i < sizeof(commands) / sizeof(commands[0]); ++i) {
+			if (strcmp(argv[1], commands[i]) == 0) {
+				if ((__tinkyService.*serviceFunctions[i])()) {
+					std::cout << "Service {tinky} " << argv[1] << "ed successfully." << std::endl;
+				}
+			}
+		}
 	}
 	return (0);
 }
