@@ -5,7 +5,12 @@
 # include <winsvc.h>
 # include <iostream>
 # include <string>
+#include <tchar.h>
+#include <strsafe.h>
 
+# define SVCNAME TEXT("tinknotyy")
+
+#pragma comment(lib, "advapi32.lib")
 
 class Tinky {
 public:
