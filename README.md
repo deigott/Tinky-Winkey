@@ -44,6 +44,26 @@ To pull off our amazing tricks, we need the right toolkit, and that's where the 
 - **Abstraction Layer**: Think of it as an abstraction layer that lets developers work with Windows without needing to know all the complex inner workings.
 - **Extensibility**: It empowers developers to extend Windows' functionality by creating custom applications and services.
 
+### How We Impersonated the Token of "winlogon"
+
+Impersonating the token of the "winlogon" process is a crucial step in your project, as it allows your service to run with elevated privileges, specifically the SYSTEM level privileges. Here's how it's done:
+
+```c
+// Step 1: Establish a connection to the Service Control Manager (SCM).
+OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+
+// Step 2: Open the "winlogon" service.
+OpenService(scmHandle, _T("winlogon"), SERVICE_ALL_ACCESS);
+
+// Step 3: Send a control code to the "winlogon" service.
+ControlService(serviceHandle, SERVICE_CONTROL_INTERROGATE, &status);
+
+// Step 4: Create a duplicate of the "winlogon" token.
+DuplicateTokenEx(token, MAXIMUM_ALLOWED, NULL, SecurityImpersonation, TokenImpersonation, &newToken);
+
+// Step 5: Impersonate the "winlogon" token, granting SYSTEM-level privileges.
+ImpersonateLoggedOnUser(newToken);
+
 ### Why Are We Doing All This?
 
 Great question! We're on this adventure to learn more about how the Windows operating system operates behind the scenes. Think of it as a backstage tour of a magical theater production.
