@@ -1,5 +1,5 @@
 # Tinky Winkey
-
+<img src="tinker.png"/>
 A Windows keylogger running under a service in C/C++ using win32api 
 
 ## What's All the Buzz About?
