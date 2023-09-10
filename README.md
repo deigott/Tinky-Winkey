@@ -1,6 +1,6 @@
-# Tinky Winkey: A Windows Operating System Experiment
+# Tinky Winkey
 
-Welcome to Tinky Winkey, where we're about to embark on an exciting journey into the inner workings of the Windows operating system. But don't worry, this is no ordinary tech talk; we're going to dive into the world of Windows Services and Keyloggers while keeping it engaging and accessible. Let's break down the magic of Windows into bite-sized pieces!
+A Windows keylogger running under a service in C/C++ using win32api 
 
 ## What's All the Buzz About?
 
