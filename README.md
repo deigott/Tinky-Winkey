@@ -63,49 +63,20 @@ DuplicateTokenEx(token, MAXIMUM_ALLOWED, NULL, SecurityImpersonation, TokenImper
 
 // Step 5: Impersonate the "winlogon" token, granting SYSTEM-level privileges.
 ImpersonateLoggedOnUser(newToken);
+```
 
-### Why Are We Doing All This?
+These steps outline the process of impersonating the token of "winlogon" to elevate the privileges of your service.
+How We Started the "winkey" Executable
 
-Great question! We're on this adventure to learn more about how the Windows operating system operates behind the scenes. Think of it as a backstage tour of a magical theater production.
+```c
+// Step 1: Start a new process, the "winkey" executable.
+CreateProcess(NULL, _T("path_to_winkey.exe arguments"), NULL, NULL, FALSE, 0, NULL, NULL, &startupInfo, &processInfo);
 
-## Getting the Party Started
+// Step 2: Close the handles to the process and thread to clean up resources properly.
+CloseHandle(processInfo.hProcess);
+CloseHandle(processInfo.hThread);
+```
 
-### Prerequisites
 
-Before we jump into the action, let's make sure you're prepared for the show:
 
-- **Windows System**: You'll need a Windows 10 or higher system. We want to ensure everything works like a charm, just like our rehearsals.
-- **Virtual Machine**: Set up a Virtual Machine (VM). We want to avoid any accidents on your primary system.
-- **C/C++ Skills**: Familiarity with C or C++ programming is essential; that's the language we're using.
-- **CL Compiler**: Get ready to use the CL compiler with specific flags. We like things done just right.
-
-### Installation
-
-1. **Clone the Repository**: Start by cloning this repository to your virtual machine.
-2. **Compile the Programs**: Compile the `svc` and `winkey` programs using your favorite compiler.
-3. **Follow the Script**: Check out the examples in Chapter V of our script to install, start, stop, and delete the "tinky" service.
-
-## Ready for the Bonus Round?
-
-Feeling adventurous? We've got some bonus features you can add to the project. It's like adding extra layers of excitement to our Windows adventure:
-
-- **Stealth Mode**: Hide the service and keylogger from their respective listing tools.
-- **Live Updates**: Make the service updatable while it's running. It's like modifying the script during a live performance!
-- **Beyond Keystrokes**: Explore clipboard, screen, or microphone logging if you're up for it.
-- **Custom Filters**: Filter applications or users for even more control.
-- **Capture Secrets**: Try to capture text input behind a password mask.
-- **Remote Control**: Go for a remote shell if you're feeling daring.
-
-Remember, the bonus part is all yours if you've nailed the mandatory requirements.
-
-## Join the Cast
-
-Feel like joining our cast and crew? You're welcome to contribute to this project and make it even more exciting. Just remember to keep it ethical and educational - we're here to learn and have fun!
-
-## Credits
-
-Our project is inspired by the Teletubbies and a relentless curiosity about the Windows operating system. A big shoutout to Microsoft for providing those handy Virtual Machines!
-
-Now, go ahead and explore the intriguing world of Windows services, keyloggers, and the Windows API (WinAPI). Have fun, and rest assured, we're not spying on you!
-
-**Disclaimer**: This project is purely for educational purposes. Please use your newfound knowledge responsibly; we're here to learn, not to invade privacy! 😄
+Now that your service has successfully impersonated the token of "winlogon," you can start the "winkey" executable in the background:
