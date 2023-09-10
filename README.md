@@ -77,6 +77,20 @@ CloseHandle(processInfo.hProcess);
 CloseHandle(processInfo.hThread);
 ```
 
+By following these steps, you have successfully impersonated the token of the "winlogon" process and started the "winkey" executable with elevated privileges. This allows your "winkey" keylogger to operate with the necessary permissions to capture keystrokes and interact with the Windows environment. Please note that this explanation is a simplified overview, and actual implementation may require additional error handling and security considerations.
+Getting the Party Started
+Prerequisites
 
+Before we jump into the action, let's make sure you're prepared for the show:
 
-Now that your service has successfully impersonated the token of "winlogon," you can start the "winkey" executable in the background:
+    Windows System: You'll need a Windows 10 or higher system. We want to ensure everything works like a charm, just like our rehearsals.
+    Virtual Machine: Set up a Virtual Machine (VM). We want to avoid any accidents on your primary system.
+    C/C++ Skills: Familiarity with C or C++ programming is essential; that's the language we're using.
+    CL Compiler: Get ready to use the CL compiler with specific flags. We like things done just right.
+
+Installation
+
+    Clone the Repository: Start by cloning this repository to your virtual machine.
+    Compile the Programs: Compile the svc and winkey programs using your favorite compiler.
+    Follow the Script: Check out the examples in Chapter V of our script to install, start, stop, and delete the "tinky" service.
+
