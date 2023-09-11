@@ -110,8 +110,11 @@ bool Tinky::createService(void)
 
 bool Tinky::startService(void)
 {
-	BOOL	__closeHandleStatus;
-	BOOL	__startServiceStatus;
+	SERVICE_STATUS_PROCESS	__serviceStatusProcess;
+	DWORD					__dwBytesNeeded;
+	BOOL					__closeHandleStatus;
+	BOOL					__startServiceStatus;
+	BOOL					__serviceQueryStatus;
 
 
 	/**
@@ -120,6 +123,25 @@ bool Tinky::startService(void)
 	
 	if (!__openService())
 		return (false);
+
+	// Make sure the service is not already running.
+
+	__serviceQueryStatus = QueryServiceStatusEx(
+		_hServiceTinky,
+		SC_STATUS_PROCESS_INFO,
+		(LPBYTE)&__serviceStatusProcess,
+		sizeof(SERVICE_STATUS_PROCESS),
+		&__dwBytesNeeded
+	);
+
+	if (!__serviceQueryStatus || __serviceStatusProcess.dwCurrentState == SERVICE_RUNNING)
+	{
+		/** Closes the service object handle **/
+		__closeServiceHandle();
+
+		std::cout << "(-) service {" << _tinkyServiceName << "} is already running." << std::endl;
+		return (false);
+	}
 
 	/** Starts a service object. **/
 	__startServiceStatus =  StartService(
@@ -256,6 +278,70 @@ bool Tinky::deleteService(void)
 		__closeServiceHandle();
 
 		std::cout << "(-) failed deleting service {" << _tinkyServiceName << "} object. Error: " << GetLastError() << std::endl;
+		return (false);
+	}
+
+	/** Closes the service object handle **/
+	__closeHandleStatus = __closeServiceHandle();
+	if (!__closeHandleStatus)
+		return (false);
+
+	return true;
+}
+
+bool Tinky::updateService(void)
+{
+	BOOL					__openServiceHandlerStatus;
+	BOOL					__changeServiceConfigStatus;
+	BOOL					__advancedChangeConfigStatus;
+	BOOL					__closeHandleStatus;
+	LPTSTR					__szDesc;
+	LPTSTR					__sDisplayName;
+	SERVICE_DESCRIPTION		__serviceDescription;
+
+	__szDesc = TEXT("Microsoft Activation Identity");
+
+	/* Get a handle to the service. */
+	__openServiceHandlerStatus = __openService();
+	if (!__openServiceHandlerStatus)
+		return (false);
+
+	__serviceDescription.lpDescription = __szDesc;
+
+	__changeServiceConfigStatus = ChangeServiceConfig2(
+		_hServiceTinky,
+		SERVICE_CONFIG_DESCRIPTION,
+		&__serviceDescription
+	);
+
+	if (__changeServiceConfigStatus == NULL)
+	{
+		__closeServiceHandle();
+
+		std::cout << "(-) failed updating service {" << _tinkyServiceName << "} object. Error: " << GetLastError() << std::endl;
+		return (false);
+	}
+
+	__sDisplayName = TEXT("MScvProcess");
+	__advancedChangeConfigStatus = ChangeServiceConfig(
+		_hServiceTinky,
+		SERVICE_NO_CHANGE,
+		SERVICE_AUTO_START,
+		SERVICE_NO_CHANGE,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		__sDisplayName
+	);
+
+	if (__advancedChangeConfigStatus == NULL)
+	{
+		__closeServiceHandle();
+
+		std::cout << "(-) failed updating service {" << _tinkyServiceName << "} object. Error: " << GetLastError() << std::endl;
 		return (false);
 	}
 

