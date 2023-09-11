@@ -309,6 +309,14 @@ BOOL	_processEntryPoint(void)
 	return (true);
 }
 
+void	show_usage(char* command)
+{
+	std::cout << "Invalid command: " << command << std::endl;
+	std::cout << "svc.exe [install/start/stop/delete/update]" << std::endl;
+	
+	return;
+}
+
 int     main(int argc, char** argv)
 {
 	BOOL	__entryPointStatus;
@@ -323,24 +331,31 @@ int     main(int argc, char** argv)
 	else
 	{
 		Tinky	__tinkyService(SVCNAME);
+		BOOL	__commandStatus;
 
-		const char* commands[] = { "install", "start", "stop", "delete" };
+		const char* commands[] = { "install", "start", "stop", "delete", "update"};
 
 		// Define an array of function pointers
 		bool (Tinky:: * serviceFunctions[])() = {
 			&(Tinky::createService),
 			&(Tinky::startService),
 			&(Tinky::stopService),
-			&(Tinky::deleteService)
+			&(Tinky::deleteService),
+			&(Tinky::updateService)
 		};
 
 		for (int i = 0; i < sizeof(commands) / sizeof(commands[0]); ++i) {
 			if (strcmp(argv[1], commands[i]) == 0) {
-				if ((__tinkyService.*serviceFunctions[i])()) {
+				__commandStatus = (__tinkyService.*serviceFunctions[i])();
+				if (__commandStatus) {
 					std::cout << "Service {tinky} " << argv[1] << "ed successfully." << std::endl;
+					return (0);
 				}
+				else
+					return (1);
 			}
 		}
+		show_usage(argv[1]);
 	}
 	return (0);
 }
