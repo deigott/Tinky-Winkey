@@ -87,7 +87,7 @@ VOID	kill_winky(void)
 	BOOL	__terminateProcessStatus;
 
 	/* TO-DO: open process by pid and terminate it */
-	__winkeyPID = getPidByProcName("winkey.exe");
+	__winkeyPID = getPidByProcName(WINKEY_EXEC);
 
 	__hWinkeyProcess = OpenProcess(
 		PROCESS_TERMINATE,
