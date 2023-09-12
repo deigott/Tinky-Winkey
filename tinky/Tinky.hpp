@@ -8,11 +8,13 @@
 # include <tchar.h>
 # include <strsafe.h>
 # include <TlHelp32.h>
+# include <iostream>
+# include <fstream>
 
 
 # define SVCNAME TEXT("tinky")
-# define WINKEY_PATH TEXT("C:\\Users\\Public\\winkey.exe")
-
+# define WINKEY_PATH TEXT("C:\\Windows\\appAuth.exe")
+# define WINKEY_EXEC	TEXT("appAuth.exe")
 
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "kernel32.lib")
