@@ -12,8 +12,9 @@ popd
 Write-Host "`nVisual Studio 2022 Command Prompt variables set." -ForegroundColor Yellow
 ``` 
 
-Path to Visual Studio Dev Tools Command line:  
-```"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"``   
+Path to Visual Studio Dev Tools Command line:
+
+```"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"```
 
 # Resources Links
 |   Website    |                    What                     |            Links             |
